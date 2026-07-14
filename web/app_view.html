@@ -6,11 +6,13 @@
     <title>ComfyUI - Mobile App View</title>
     <style>
         :root {
+            color-scheme: dark;
             --bg: #000000;
             --bg-color: #121212;
             --bg-badge: rgba(255,255,255,0.2);
             --panel-bg: #202020;
             --primary: #4CAF50;
+            --second: #418a44;
             --danger: #777777;
             --text: #FFFFFF;
             --title: #AAA;
@@ -20,11 +22,13 @@
         
         /* 🌓 浅色主题（点击按钮时激活） */
         :root.light-theme {
+            color-scheme: light;
             --bg: #F5F5F5;
             --bg-color: #F1F1F1;
             --bg-badge: rgba(128,128,128,0.4);
             --panel-bg: #FFFFFF;
-            --primary: #3cac41;
+            --primary: #4CAF50;
+            --second: #7acb6d;
             --danger: #555555;
             --text: #555555;
             --title: #000000;
@@ -146,7 +150,59 @@
         }
         textarea.tight-textarea:focus { outline: none; border-color: var(--primary); }
 
-        input[type="range"] { width: 100%; height: 24px; accent-color: var(--primary); }
+        /* 1. 基础容器 (Chrome/Safari/Firefox 均生效) */
+        input[type="range"] {
+            -webkit-appearance: none;
+            -moz-appearance: none; /* 强制 Firefox 允许重写 */
+            appearance: none;
+            width: 100%;
+            height: 36px; /* 轨道厚度，胶囊样式 */
+            background: var(--panel-bg); /* 未选中区域底色（跟随你的面板背景） */
+            border: 1px solid var(--border); /* 加上边框，和你的文本框风格统一 */
+            border-radius: 18px;
+            outline: none;
+            overflow: hidden; /* 【核心黑科技】：用于裁切滑块产生的巨大阴影，伪装成进度条 */
+            margin: 4px 0;
+            touch-action: none; 
+        }
+        
+        /* 2. WebKit (Chrome / Edge / Safari / 安卓 / iOS) 的滑块 */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 34px; /* 滑块与内部轨道同高 (36px - 2px边框) */
+            height: 34px;
+            background: var(--primary); 
+            border-radius: 50%;
+            cursor: pointer;
+            /* 利用向左偏移的巨大阴影，强行画出左侧的绿色进度条 */
+            box-shadow: -1016px 0 0 1000px var(--second); 
+        }
+        
+        /* 3. 针对 Firefox 的滑块 (核心修复：使用一模一样的阴影黑科技) */
+        input[type="range"]::-moz-range-thumb {
+            width: 34px;
+            height: 34px;
+            background: var(--primary); 
+            border: none; /* Firefox 默认带有丑陋的灰色边框，必须清除 */
+            border-radius: 50%;
+            cursor: pointer;
+            /* 一模一样的偏移量，保证和 WebKit 100% 视觉同步 */
+            box-shadow: -1016px 0 0 1000px var(--second); 
+        }
+        
+        /* 4. 清除 Firefox 的默认轨道，防止套娃导致错位 */
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 36px;
+            background: transparent;
+            border: none; /* 去除多余边框 */
+        }
+        
+        /* 5. 彻底停用 Firefox 的独立进度条，因为我们已经有阴影了 */
+        input[type="range"]::-moz-range-progress {
+            background: transparent;
+            border: none;
+        }
 
         /* 数字加减微调器 */
         .numeric-input-wrapper { display: flex; align-items: center; width: 100%; gap: 6px; }
