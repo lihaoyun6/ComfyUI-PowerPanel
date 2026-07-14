@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ComfyUI - Mobile App View</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --bg-color: #121212;
+            --bg-badge: rgba(255,255,255,0.2);
+            --panel-bg: #202020;
+            --primary: #4CAF50;
+            --danger: #777777;
+            --text: #FFFFFF;
+            --title: #AAA;
+            --border: #333333;
+        }
+        
+        /* 🌓 浅色主题（点击按钮时激活） */
+        :root.light-theme {
+            --bg: #F5F5F5;
+            --bg-color: #F1F1F1;
+            --bg-badge: rgba(128,128,128,0.4);
+            --panel-bg: #FFFFFF;
+            --primary: #3cac41;
+            --danger: #555555;
+            --text: #555555;
+            --title: #000000;
+            --border: #D8D8D8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        html, body {
+            overscroll-behavior-y: none; 
+            overscroll-behavior: none;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color); color: var(--text);
+            display: flex; flex-direction: column;  height: 100dvh; overflow: hidden; 
+        }
+
+        /* 👈 极致优化：屏蔽手机端双击缩放行为并消除点击延时 */
+        body, button, input, select, textarea, .segmented-toggle, .gallery-item {
+            touch-action: manipulation;
+        }
+
+        /* 实时进度条容器 */
+        .progress-bar-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 4px;
+            background-color: transparent; z-index: 99999; pointer-events: none;
+        }
+        .progress-bar-fill {
+            width: 0%; height: 100%; background-color: var(--primary);
+            transition: width 0.1s ease-out; box-shadow: 0 0 8px var(--primary);
+        }
+
+        /* 左侧/顶部：纯大图展示区 */
+        .viewer-container {
+            display: flex; flex-direction: column;
+            flex: 0 0 30dvh; /* 手机端初始占用 30% 高度 */
+            background-color: #000; overflow: hidden;
+        }
+
+        .preview-section {
+            flex: 1; background-color: var(--bg); display: flex; justify-content: center;
+            align-items: center; position: relative; overflow: hidden;
+        }
+        
+        #main-preview { 
+            max-width: 100%; max-height: 100%; 
+            object-fit: contain; 
+            pointer-events: none; user-select: none; -webkit-user-drag: none; 
+        }
+
+        /* 画廊默认样式（手机竖屏：缩略图 50px） */
+        .gallery-container { 
+            display: flex; overflow-x: auto; padding: 8px 16px; gap: 8px; height: 70px;
+            background-color: var(--panel-bg); border-top: 1px solid var(--border);
+            border-top-left-radius: 18px; border-top-right-radius: 18px;
+        }
+        .gallery-container::-webkit-scrollbar { display: none; }
+        .gallery-item {
+            width: 60px; height: 60px; border-radius: 6px; object-fit: cover; flex-shrink: 0;
+            border: 2px solid var(--border); cursor: pointer;
+        }
+
+        .status-badge {
+            position: absolute; top: 10px; right: 10px; background: var(--bg-badge);
+            padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; color: #fff; z-index: 10;
+            border: 1px solid var(--border); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+        }
+
+        /* 拖拽调节器 */
+        .resizer {
+            height: 18px; width: 100%; cursor: row-resize; flex-shrink: 0; border-top: 2px solid var(--border);
+            position: relative; z-index: 100; user-select: none; transition: background 0.15s;
+            border-top-left-radius: 18px; border-top-right-radius: 18px;
+        }
+        .resizer::after {
+            content: ''; position: absolute; left: 50%; top: 8px; transform: translate(-50%, -50%);
+            width: 100px; height: 4px; background: var(--danger); border-radius: 2px;
+        }
+
+        /* 右侧面板 */
+        .right-panel {
+            flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;
+        }
+
+        /* 紧凑参数区：由于画廊手机端在最下侧，Padding只需要 150px（按钮+画廊） */
+        .controls-section { 
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; 
+            padding: 12px 16px; 
+            padding-bottom: 150px; 
+        }
+        .controls-section::-webkit-scrollbar { display: none; }
+        .control-group { margin-bottom: 10px;}
+        .control-group label.control-title { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 4px; font-size: 13px; color: var(--title); 
+        }
+        
+        /* 👇 新增：Slider 数值专用小气泡样式，采用等宽字体防止数字跳动时框体抖动 */
+        .slider-value-badge {
+            background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); padding: 1px 6px;
+            border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace;
+            color: var(--primary); user-select: none;
+        }
+        
+        input[type="text"], input[type="number"], select {
+            width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--panel-bg); color: var(--text); font-size: 14px; appearance: none;
+        }
+
+        /* 👈 核心修改：紧凑型文本域（用来代替input[type="text"]以原生支持多行换行） */
+        textarea.tight-textarea {
+            width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--panel-bg); color: var(--text); font-size: 14px; height: 36px;
+            resize: none; white-space: pre-wrap; line-height: 18px; overflow-y: hidden;
+        }
+        textarea.tight-textarea:focus { outline: none; border-color: var(--primary); }
+
+        input[type="range"] { width: 100%; height: 24px; accent-color: var(--primary); }
+
+        /* 数字加减微调器 */
+        .numeric-input-wrapper { display: flex; align-items: center; width: 100%; gap: 6px; }
+        .numeric-input-wrapper input { flex: 1; text-align: center; }
+        .btn-numeric-adjust {
+            background: var(--panel-bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px;
+            width: 3rem; height: 36px; cursor: pointer; font-size: 18px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; user-select: none;
+        }
+        .btn-numeric-adjust:active { background: #2a2a2a; }
+
+        /* 双段开关式 BOOLEAN */
+        .segmented-toggle {
+            width: 100%; height: 36px; background: #111; border: 1px solid var(--border);
+            border-radius: 8px; position: relative; cursor: pointer; overflow: hidden;
+        }
+        .toggle-track { display: flex; height: 100%; position: relative; z-index: 1; }
+        .toggle-label-half {
+            flex: 1; display: flex; align-items: center; justify-content: center; user-select: none;
+            font-size: 13px; font-weight: bold; color: #777; transition: color 0.2s; z-index: 2; 
+        }
+        .toggle-thumb {
+            position: absolute; top: 2px; left: 2px; height: calc(100% - 4px);
+            width: calc(50% - 4px); background: #333; border-radius: 6px;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s; z-index: 1;
+        }
+        input[type="checkbox"]:checked + .toggle-track .toggle-thumb {
+            transform: translateX(calc(100% + 4px)); background: var(--primary);
+        }
+        input[type="checkbox"]:checked + .toggle-track .toggle-label-half[data-val="true"] { color: #fff; }
+        input[type="checkbox"]:not(:checked) + .toggle-track .toggle-label-half[data-val="false"] { color: #fff; }
+
+        /* 多行编辑包装器 */
+        .input-with-button { display: flex; gap: 6px; width: 100%; }
+        .btn-edit-multiline {
+            background: var(--panel-bg); border: 1px solid var(--border); color: #fff; border-radius: 8px; width: 3rem;
+            flex-shrink: 0; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-edit-multiline:active { background: #2a2a2a; }
+        
+        /* 👇 新增：让多行编辑容器内的输入框自适应剩余空间，不再霸道地占用 100% 宽度 */
+        .input-with-button input, .input-with-button textarea { flex: 1; width: auto; }
+        .btn-edit-multiline:active { background: #2a2a2a; }
+        
+        /* 👇 新增控制行容器，让上传框和切换预览按钮横向并排 */
+        .uploader-control-row { display: flex; gap: 6px; width: 100%; }
+        .uploader-dropzone {
+            flex: 1; padding: 10px; border: 2px dashed var(--border); border-radius: 8px;
+            background: var(--bg); text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; user-select: none;
+        }
+        .uploader-dropzone.dragover { border-color: var(--primary); background: rgba(76, 175, 80, 0.05); }
+        /* 👈 已移除原有的 .uploader-icon 图标样式 */
+        .uploader-text { font-size: 13px; color: #888; }
+        .uploader-filename { font-size: 12px; color: var(--primary); word-break: break-all; margin-top: 2px; font-weight: bold; }
+        
+        /* 👇 切换预览按钮：移至上传框右侧，外观尺寸与 📝 保持统一 */
+        .uploader-preview-toggle {
+            background: var(--panel-bg); border: 1px solid var(--border); color: #fff; border-radius: 8px;
+            width: 3rem; cursor: pointer; font-size: 16px; display: none; align-items: center;
+            justify-content: center; user-select: none;
+        }
+        .uploader-preview-toggle:active { background: #2a2a2a; }
+        .uploader-preview-box {
+            margin-top: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-bg);
+            overflow: hidden; display: flex; justify-content: center; align-items: center; max-height: 200px;
+            transition: max-height 0.2s ease-out;
+        }
+        .uploader-preview-box.collapsed { max-height: 0; margin-top: 0; border: none; }
+        .uploader-preview-box img, .uploader-preview-box video { max-width: 100%; max-height: 200px; object-fit: contain; }
+        .uploader-preview-box audio { width: 100%; padding: 8px; }
+
+        /* 底部操作栏 */
+        .bottom-action-bar {
+            position: absolute; bottom: 0; left: 0; width: 100%; background-color: var(--panel-bg);
+            border-top: 1px solid var(--border); z-index: 100; display: flex; flex-direction: column;
+            padding-bottom: env(safe-area-inset-bottom); border-top-left-radius: 18px; border-top-right-radius: 18px;
+        }
+        
+        .button-group { display: flex; gap: 10px; padding: 8px 16px 10px 16px; }
+        /* 底部操作按钮基础样式与点击回弹 */
+        .btn {
+            flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 14px;
+            font-weight: bold; color: white; cursor: pointer; display: flex; justify-content: center;
+            align-items: center; transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
+        }
+        .btn:active { opacity: 0.8; transform: scale(0.98); }
+        
+        /* 👇 修改：开始生成按钮。采用蓝色（#3E8AE2），增加鼠标经过高光 */
+        .btn-run { background-color: #3E8AE2; flex: 3; }
+        .btn-run:hover { background-color: #559ceb; }
+        
+        /* 👇 修改：停止按钮。采用深红色（#A6433F），宽度为 60px 的紧凑正方形，增加鼠标经过高光 */
+        .btn-stop { background-color: #C43A20; flex: 1; }
+        .btn-stop:hover { background-color: #be534e; }
+        
+        /* 👇【新增：SEED 专属控件整体包装器与下拉动作菜单样式】 */
+        .seed-wrapper { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+        .seed-action-row {
+            display: flex; justify-content: space-between;
+            align-items: center; gap: 8px; width: 100%; margin-top: 4px;
+        }
+        .seed-action-label { font-size: 13px; color: var(--title); white-space: nowrap;  user-select: none; }
+        .seed-action-select { flex: 1; min-height: 32px; cursor: pointer; outline: none; text-align: right; text-align-last: right; }
+        .seed-action-select:focus { border-color: var(--primary); }
+
+        /* 模态浮层基类 */
+        .modal {
+            display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; padding: 16px;
+        }
+        .modal-content {
+            background-color: var(--panel-bg); border: 1px solid var(--border); border-radius: 12px;
+            width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px; padding: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: bold; }
+        .modal-close { color: #aaa; font-size: 24px; font-weight: bold; cursor: pointer; }
+        .modal-close:hover { color: var(--text); }
+        #multiline-textarea {
+            width: 100%; height: 50vh; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); padding: 10px; font-family: inherit; font-size: 14px; resize: vertical;
+        }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+        .modal-btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .modal-btn-cancel { background-color: var(--border); color: var(--text); }
+        .modal-btn-save { background-color: var(--primary); color: #fff; }
+
+        /* 灯箱组件 */
+        .lightbox-modal {
+            display: none; position: fixed; z-index: 11000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8); justify-content: center; align-items: center;
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+        }
+        .lightbox-content { max-width: 95dvw; max-height: 90dvh; object-fit: contain; animation: zoom 0.15s ease-out; }
+        @keyframes zoom { from {transform: scale(0.95); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+        .lightbox-close { position: absolute; top: 20px; right: 25px; color: #fff; font-size: 35px; font-weight: bold; cursor: pointer; user-select: none; z-index: 11300; }
+
+        /* 灯箱翻页箭头 */
+        .lightbox-arrow {
+            position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.55);
+            border: none; color: #fff; font-size: 28px; width: 48px; height: 48px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            user-select: none; z-index: 11200; transition: background 0.2s, transform 0.1s;
+        }
+        .lightbox-arrow:hover { background: var(--primary); }
+        .lightbox-arrow:active { transform: translateY(-50%) scale(0.9); }
+        .lightbox-arrow-left { left: 20px; }
+        .lightbox-arrow-right { right: 20px; }
+        
+        .number-input::-webkit-outer-spin-button, .number-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .number-input[type=number] { -moz-appearance: textfield; }
+        .btn-batch-input {
+            background-color: var(--border) !important; border: 1px solid #555 !important; border-radius: 8px;
+            flex: 0.5; color: #fff;  text-align: center; outline: none; touch-action: manipulation;
+        }
+        
+        .theme-toggle-btn { position: absolute; top: 10px; left: 10px; padding: 3px 10px; right: auto; }
+
+        /* 电脑端响应式重写 */
+        @media (min-width: 768px) {
+            body { flex-direction: row; }
+            /* 👈 吸收GPT精髓：主视图容器加入 flex-shrink/auto 控制收缩 */
+            .viewer-container { flex: 1 1 auto; min-width: 0; height: 100vh; }
+            .preview-section { flex: 1; border-bottom: none; }
+
+            /* 👈 优化：横屏PC端画廊高度改成指定的 120px，缩略图 100px */
+            .gallery-container { flex: 0 0 120px !important; height: 120px !important; }
+            .gallery-item { width: 100px !important; height: 100px !important; }
+
+            /* 👈 吸收GPT精髓：PC分割线 flex-shrink 固定 */
+            .resizer {
+                width: 10px; height: 100%; cursor: col-resize; flex-shrink: 0; border-top: none;
+                border-bottom: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+            }
+            .resizer::after { width: 3px; height: 50px; left: 50%; top: 50%; }
+            .resizer:hover, .resizer.dragging { background: var(--primary); }
+
+            /* 👈 吸收GPT精髓：PC参数区引入 flex 0 0 / min-width 约束防止偏斜 */
+            .right-panel { 
+                flex: 0 0 400px; width: 400px; min-width: 250px;
+                display: flex; flex-direction: column; height: 100vh; position: relative;
+            }
+            /* 画廊移到左下侧了，PC端的参数区底部高度只需要 80px 容纳按钮即可 */
+            .controls-section { flex: 1; padding-bottom: 80px; }
+            .bottom-action-bar { position: absolute; width: 100%; } 
+            .button-group { display: flex; gap: 10px; padding: 16px 16px 16px 16px; }
+            .bottom-action-bar, .gallery-container, .resizer { border-radius: 0px; 0px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶端隐性进度条 -->
+    <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+
+    <!-- 视图面板：包揽大图预览 -->
+    <div class="viewer-container">
+        <div class="preview-section">
+            <button class="theme-toggle-btn status-badge" id="theme-toggle" title="Toggle Theme">🌓</button>
+            <span class="status-badge" id="status-text" data-i18n="lable_ready">Ready</span>
+            <img id="main-preview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23555'/><text x='50%' y='50%' fill='%23999' font-size='16' text-anchor='middle' alignment-baseline='middle'>No Media</text></svg>">
+        </div>
+        <!-- 结果历史画廊挂载点（该容器在 JS 中会随分辨率动态物理“迁徙”） -->
+        <div class="gallery-container" id="gallery"></div>
+    </div>
+
+    <!-- 拖拽调节器 -->
+    <div id="resizer" class="resizer"></div>
+
+    <div class="right-panel">
+        <div class="controls-section" id="dynamic-form">
+            <p style="color:#aaa; text-align:center; margin-top:20px;">Loading UI...</p>
+        </div>
+
+        <div class="bottom-action-bar">
+            <div class="button-group">
+                <input type="number" id="input-batch-count" class="number-input btn-batch-input" value="1" min="1" max="999" title="Batch Count" placeholder="1">
+                <button class="btn btn-run" id="btn-run" data-i18n="button_run">▷ Run</button>
+                <button class="btn btn-stop" id="btn-stop">✘</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文本编辑浮层 -->
+    <div id="multiline-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span id="modal-title" data-i18n="label_editer">Edit Text</span>
+                <span class="modal-close" id="multiline-modal-close">&times;</span>
+            </div>
+            <textarea id="multiline-textarea"></textarea>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" id="multiline-btn-cancel" data-i18n="label_cancel">Cancel</button>
+                <button class="modal-btn modal-btn-save" id="multiline-btn-save" data-i18n="label_save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 灯箱模式弹层 -->
+    <div id="lightbox-modal" class="lightbox-modal">
+        <span class="lightbox-close" id="lightbox-close">&times;</span>
+        <button class="lightbox-arrow lightbox-arrow-left" id="lightbox-prev">&#10094;</button>
+        <img class="lightbox-content" id="lightbox-img">
+        <button class="lightbox-arrow lightbox-arrow-right" id="lightbox-next">&#10095;</button>
+    </div>
+
+    <script>
+        let translations = {};
+        let sourceNodeId = null;
+        let activeInputEl = null;
+        
+        // 灯箱数据
+        let currentLightboxIndex = 0;
+        let currentImagesList = [];
+        
+        const savedTheme = localStorage.getItem('appview_theme') || 'dark';
+        if (savedTheme === 'light') {
+            document.documentElement.classList.add('light-theme');
+        } else {
+            document.documentElement.classList.remove('light-theme');
+        }
+        
+        function t(key, defaultText, ...args) {
+            let text = translations[key] || defaultText;
+            if (args.length > 0) {
+                args.forEach((arg, idx) => {
+                    text = text.replace(`{${idx}}`, arg);
+                });
+            }
+            return text;
+        }
+        
+        async function loadI18n() {
+            let locale = navigator.language.split(/[-_]/)[0];;
+            try {
+                if (window.opener && window.opener.comfyApp && window.opener.comfyApp.ui) {
+                    locale = window.opener.comfyApp.ui.settings.getSettingValue("Comfy.Locale") || "en";
+                }
+            } catch (e) { console.warn(e); }
+            
+            if (locale.startsWith("en")) return; 
+            
+            try {
+                const i18nUrl = new URL(`i18n/${locale}.json`, window.location.href).href;
+                console.log(i18nUrl)
+                let res = await fetch(i18nUrl);
+                if (!res.ok) {
+                    const baseLang = locale.split('-')[0];
+                    const baseI18nUrl = new URL(`i18n/${baseLang}.json`, window.location.href).href;
+                    res = await fetch(baseI18nUrl);
+                }
+                if (res.ok) {
+                    translations = await res.json();
+                    applyStaticI18n(); 
+                }
+            } catch (e) {
+                console.warn("Translation load skipped or failed:", e);
+            }
+        }
+        
+        function applyStaticI18n() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[key]) el.innerText = translations[key];
+            });
+        }
+        
+        // 统一消息接收
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+            if (!msg) return;
+            
+            const statusText = document.getElementById('status-text');
+            if (msg.type === 'b_preview') {
+                if (msg.blob) {
+                    document.getElementById('main-preview').src = URL.createObjectURL(msg.blob);
+                }
+            }
+            else if (msg.type === 'executed') {
+                const data = msg.detail;
+                if (data && data.output && data.output.images) {
+                    data.output.images.forEach(img => {
+                        const imgUrl = `/view?filename=${encodeURIComponent(img.filename)}&subfolder=${encodeURIComponent(img.subfolder)}&type=${encodeURIComponent(img.type)}`;
+                        document.getElementById('main-preview').src = imgUrl;
+                        
+                        const imgEl = document.createElement('img');
+                        imgEl.src = imgUrl;
+                        imgEl.className = 'gallery-item';
+                        
+                        // 点击小图：大图载入并弹起灯箱大图
+                        imgEl.onclick = function() {
+                            document.getElementById('main-preview').src = this.src;
+                            openLightbox(this.src); 
+                        };
+                        
+                        const gallery = document.getElementById('gallery');
+                        gallery.insertBefore(imgEl, gallery.firstChild);
+                    });
+                }
+            }
+            else if (msg.type === 'execution_start') {
+                statusText.innerText = t("label_generating", "Generating...");
+                statusText.style.color = "var(--primary)";
+                document.getElementById('progress-bar').style.width = '0%'; // 重置进度
+                syncParentValuesToAppView();
+            }
+            else if (msg.type === 'progress') {
+                const data = msg.detail;
+                if (data && data.max) {
+                    const percentage = (data.value / data.max) * 100;
+                    document.getElementById('progress-bar').style.width = `${percentage}%`;
+                }
+            }
+            else if (msg.type === 'status') {
+                if (msg.detail && msg.detail.exec_info && msg.detail.exec_info.queue_remaining === 0) {
+                    setTimeout(() => {
+                        statusText.innerText = t("label_ready", "Ready");
+                        statusText.style.color = "#fff";
+                    }, 300);
+                    document.getElementById('progress-bar').style.width = '0%'; // 清空进度
+                    syncParentValuesToAppView();
+                }
+            }
+            else if (msg.type === 'execution_interrupted') {
+                statusText.innerText = t("label_interrupted", "Interrupted");
+                statusText.style.color = "#f44336";
+                document.getElementById('progress-bar').style.width = '0%'; // 清空进度
+            }
+            else if (msg.type === 'execution_error') {
+                const data = msg.detail;
+                statusText.innerText = "Error";
+                statusText.style.color = "#f44336"; // 将状态文字设为红色警告色
+                document.getElementById('progress-bar').style.width = '0%'; // 重置进度条
+                
+                if (data) {
+                    const errorMsg = data.exception_message || "Unknown error";
+                    const nodeType = data.node_type || "Unknown Node";
+                    const nodeIdVal = data.node_id || "?";
+                    const errType = data.exception_type || "Exception";
+                    
+                    // 弹出带有故障细节定位的人性化提示框
+                    alert(`⚠️ ComfyUI Execution Error\n\nFailed Node: ${nodeType} (ID: ${nodeIdVal})\nError Type: ${errType}\n\nMessage:\n${errorMsg}`);
+                }
+            }
+            else if (msg.type === 'pre_queue_error') {
+                statusText.innerText = t("label_error", "Error");
+                statusText.style.color = "#f44336";
+                document.getElementById('progress-bar').style.width = '0%';
+                
+                alert(`⚠️ ComfyUI Queue Error\n\n${msg.message}`);
+            }
+        });
+        
+        // 页面初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadI18n();
+            const urlParams = new URLSearchParams(window.location.search);
+            const nodeId = urlParams.get('nodeId');
+            
+            if (nodeId && window.opener && !window.opener.closed) {
+                const parentApp = window.opener.comfyApp;
+                const parentApi = window.opener.comfyApi;
+                
+                window.comfyApp = parentApp;
+                window.comfyApi = parentApi;
+                
+                const parentNode = parentApp.graph.getNodeById(nodeId);
+                if (parentNode) {
+                    sourceNodeId = nodeId;
+                    parentNode.registerAppWindow(window);
+                    
+                    const jsonStr = parentNode.widgets.find(w => w.name === "config_json")?.value || "{}";
+                    renderDynamicForm(JSON.parse(jsonStr));
+                    
+                    /// 1. 初始化拖拽事件监听
+                    initResizeLogic();
+                    
+                    // 2. 👈【核心修改】：首次加载时传入 true 触发初始化排版，并在窗口调整大小时传入 false 调度过渡清理
+                    handleResponsiveLayout(true); 
+                    window.addEventListener('resize', () => handleResponsiveLayout(false));
+                    
+                    // 3. 初始化灯箱事件
+                    initLightboxEvents();
+                    
+                    document.getElementById('theme-toggle').onclick = () => {
+                        const isLight = document.documentElement.classList.toggle('light-theme');
+                        localStorage.setItem('appview_theme', isLight ? 'light' : 'dark');
+                    };
+                }
+            } else {
+                document.getElementById('dynamic-form').innerHTML = 
+                `<p style="color:#f44336; text-align:center; margin-top:20px;">${t("connection_lost", "Connection lost. Please reopen from the original panel.")}</p>`;
+            }
+        });
+        
+        let isDesktopState = window.innerWidth >= 768; // 缓存并跟踪当前的视口状态
+        
+        // 👇【核心修复】：状态机切换，彻底解决横竖屏转换时 inline 残留样式冲突的Bug
+        function handleResponsiveLayout(isInit = false) {
+            const isDesktop = window.innerWidth >= 768;
+            const rightPanel = document.querySelector('.right-panel');
+            const viewerContainer = document.querySelector('.viewer-container');
+            if (!rightPanel || !viewerContainer) return;
+            
+            // 1. 画廊动态挪迁
+            adjustGalleryLayout();
+            
+            // 2. 首次启动加载：直接从本地存储恢复对应设备的记忆数值，无需执行样式清理
+            if (isInit) {
+                if (isDesktop) {
+                    const savedWidth = localStorage.getItem('appview_panel_width') || "400";
+                    rightPanel.style.width = `${savedWidth}px`;
+                    rightPanel.style.flexBasis = `${savedWidth}px`;
+                } else {
+                    const savedHeight = localStorage.getItem('appview_preview_height') || "30dvh";
+                    viewerContainer.style.flex = `0 0 ${savedHeight}px`;
+                }
+                return;
+            }
+            
+            // 3. 越界状态过渡：清除对方设备的 inline 残留，防止样式高权重锁死布局
+            if (isDesktop && !isDesktopState) {
+                // 📱 手机 -> 💻 电脑
+                viewerContainer.style.flex = ""; // 彻底清除手机端残留的高度
+                const savedWidth = localStorage.getItem('appview_panel_width') || "400";
+                rightPanel.style.width = `${savedWidth}px`;
+                rightPanel.style.flexBasis = `${savedWidth}px`; // 应用电脑端的宽
+                
+                isDesktopState = true;
+            } else if (!isDesktop && isDesktopState) {
+                // 💻 电脑 -> 📱 手机
+                rightPanel.style.width = ""; // 彻底清除电脑端残留的宽度，允许手机端100%自适应
+                rightPanel.style.flexBasis = ""; // 彻底清除 flex-basis
+                const savedHeight = localStorage.getItem('appview_preview_height') || "30dvh";
+                viewerContainer.style.flex = `0 0 ${savedHeight}px`; // 应用手机端的高
+                
+                isDesktopState = false;
+            }
+        }
+        
+        // 保留原有的 adjustGalleryLayout 不变，仅作为位置搬迁辅助
+        function adjustGalleryLayout() {
+            const isDesktop = window.innerWidth >= 768;
+            const gallery = document.getElementById('gallery');
+            if (!gallery) return;
+            
+            if (isDesktop) {
+                const viewerContainer = document.querySelector('.viewer-container');
+                if (viewerContainer && gallery.parentNode !== viewerContainer) {
+                    viewerContainer.appendChild(gallery);
+                }
+            } else {
+                const actionBar = document.querySelector('.bottom-action-bar');
+                const buttonGroup = document.querySelector('.button-group');
+                if (actionBar && buttonGroup && gallery.parentNode !== actionBar) {
+                    actionBar.insertBefore(gallery, buttonGroup);
+                }
+            }
+        }
+        
+        // 👇【核心新增】：主动拉取主界面节点最新的实际参数，并反向刷新写回到 AppView 网页表单上
+        function syncParentValuesToAppView() {
+            if (!window.comfyApp || !sourceNodeId) return;
+            const node = window.comfyApp.graph.getNodeById(sourceNodeId);
+            if (!node) return;
+            
+            for (const widget of node.widgets) {
+                const inputEl = document.getElementById(`input_${widget.name}`);
+                if (inputEl) {
+                    if (inputEl.type === 'checkbox') {
+                        inputEl.checked = widget.value;
+                    } else {
+                        inputEl.value = widget.value;
+                    }
+                    // 派发事件让数值气泡和关联预览即时更新
+                    inputEl.dispatchEvent(new Event('change'));
+                    inputEl.dispatchEvent(new Event('input'));
+                }
+                
+                // 处理伴生的 control_after_generate 动作下拉框的刷新
+                if (widget.name === 'control_after_generate') {
+                    const idx = node.widgets.indexOf(widget);
+                    if (idx > 0) {
+                        const seedWidget = node.widgets[idx - 1];
+                        const actionSelect = document.getElementById(`input_action_${seedWidget.name}`);
+                        if (actionSelect) {
+                            actionSelect.value = widget.value;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 动态表单生成（支持 UPLOADER 媒体上传与折叠预览）
+        async function renderDynamicForm(config) {
+            const formContainer = document.getElementById('dynamic-form');
+            formContainer.innerHTML = ''; 
+            
+            for (const [key, params] of Object.entries(config)) {
+                const type = (params.type || "STRING").toUpperCase();
+                if (type === "BUTTON") continue; 
+                
+                const group = document.createElement('div');
+                group.className = 'control-group';
+                
+                const label = document.createElement('label');
+                label.className = 'control-title';
+                label.innerText = params.name || key;
+                group.appendChild(label);
+                
+                // 获取主界面节点实时数值
+                const parentNode = window.comfyApp ? window.comfyApp.graph.getNodeById(sourceNodeId) : null;
+                const parentWidget = parentNode ? parentNode.widgets.find(w => w.name === key) : null;
+                const currentValue = parentWidget ? parentWidget.value : params.default;
+                    
+                    if (type === "INT" || type === "FLOAT") {
+                        const isSlider = params.slider === true || params.display === "slider";
+                        
+                        // 修改后：自适应读取 precision 精度值并强制补齐小数长度（如 0.5 补齐为 0.500）
+                        if (isSlider) {
+                            // 1. 提取精度：若 JSON 带有精度值则强制使用；若无，FLOAT 默认保留 3 位，INT/SEED 保留 0 位
+                            const precision = params.precision !== undefined ? Number(params.precision) : (type === "FLOAT" ? 3 : 0);
+                            
+                            // 2. 初始化时通过 toFixed 补齐到指定精度长度
+                            const formattedInitial = Number(currentValue ?? 0).toFixed(precision);
+                            
+                            label.innerHTML = `<span>${params.name || key}</span><span class="slider-value-badge" id="badge_${key}">${formattedInitial}</span>`;
+                            
+                            const input = document.createElement('input');
+                            input.type = 'range';
+                            input.value = currentValue ?? 0;
+                            if(params.min !== undefined) input.min = params.min;
+                            if(params.max !== undefined) input.max = params.max;
+                            
+                            const step = params.step !== undefined ? Number(params.step) : (type === "INT" ? 1 : 0.1);
+                            input.step = step;
+                            
+                            input.id = `input_${key}`;
+                            
+                            // 3. 拖拽实时更新时，同样通过 toFixed 补齐长度
+                            input.addEventListener('input', () => {
+                                const badge = document.getElementById(`badge_${key}`);
+                                if (badge) {
+                                    badge.innerText = Number(input.value).toFixed(precision);
+                                }
+                            });
+                            
+                            group.appendChild(input);
+                        } else {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'numeric-input-wrapper';
+                            
+                            const btnMinus = document.createElement('button');
+                            btnMinus.type = 'button';
+                            btnMinus.className = 'btn-numeric-adjust';
+                            btnMinus.innerText = '◀';
+                            
+                            const input = document.createElement('input');
+                            input.type = 'number';
+                            input.className = 'number-input';
+                            input.value = currentValue ?? 0;
+                            input.id = `input_${key}`;
+                            if(params.min !== undefined) input.min = params.min;
+                            if(params.max !== undefined) input.max = params.max;
+                            
+                            const step = params.step !== undefined ? Number(params.step) : (type === "INT" ? 1 : 0.1);
+                            input.step = step;
+                            
+                            const btnPlus = document.createElement('button');
+                            btnPlus.type = 'button';
+                            btnPlus.className = 'btn-numeric-adjust';
+                            btnPlus.innerText = '▶';
+                            
+                            const minVal = params.min !== undefined ? Number(params.min) : -Infinity;
+                            const maxVal = params.max !== undefined ? Number(params.max) : Infinity;
+                            
+                            btnMinus.onclick = () => {
+                                let val = Number(input.value) - step;
+                                if (val < minVal) val = minVal;
+                                if (type === "FLOAT") val = parseFloat(val.toFixed(4));
+                                input.value = val;
+                                input.dispatchEvent(new Event('change'));
+                            };
+                            
+                            btnPlus.onclick = () => {
+                                let val = Number(input.value) + step;
+                                if (val > maxVal) val = maxVal;
+                                if (type === "FLOAT") val = parseFloat(val.toFixed(4));
+                                input.value = val;
+                                input.dispatchEvent(new Event('change'));
+                            };
+                            
+                            wrapper.appendChild(btnMinus);
+                            wrapper.appendChild(input);
+                            wrapper.appendChild(btnPlus);
+                            group.appendChild(wrapper);
+                        }
+                    } else if (type === "BOOLEAN" || type === "BYPASSER") {
+                        const toggleContainer = document.createElement('div');
+                        toggleContainer.className = 'segmented-toggle';
+                        
+                        const input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.id = `input_${key}`;
+                        input.checked = currentValue ?? true;
+                        input.style.display = 'none';
+                        
+                        const track = document.createElement('div');
+                        track.className = 'toggle-track';
+                        
+                        const labelFalse = document.createElement('div');
+                        labelFalse.className = 'toggle-label-half';
+                        labelFalse.setAttribute('data-val', 'false');
+                        labelFalse.innerText = (type === "BYPASSER") ? t('label_off', 'OFF') : t('label_false', 'False');
+                        
+                        const labelTrue = document.createElement('div');
+                        labelTrue.className = 'toggle-label-half';
+                        labelTrue.setAttribute('data-val', 'true');
+                        labelTrue.innerText = (type === "BYPASSER") ? t('label_on', 'ON') : t('label_true', 'True');
+                        
+                        const thumb = document.createElement('div');
+                        thumb.className = 'toggle-thumb';
+                        
+                        track.appendChild(labelFalse);
+                        track.appendChild(labelTrue);
+                        track.appendChild(thumb);
+                        
+                        toggleContainer.appendChild(input);
+                        toggleContainer.appendChild(track);
+                        
+                        input.addEventListener('change', () => {
+                            if (window.comfyApp && sourceNodeId) {
+                                const node = window.comfyApp.graph.getNodeById(sourceNodeId);
+                                if (node) {
+                                    const widget = node.widgets.find(w => w.name === key);
+                                    if (widget) {
+                                        widget.value = input.checked;
+                                        if (widget.callback) widget.callback(input.checked);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // 点击切换
+                        toggleContainer.addEventListener('click', () => {
+                            input.checked = !input.checked;
+                            input.dispatchEvent(new Event('change'));
+                        });
+                        
+                        // 左右手势拖拽
+                        let startX = 0;
+                        toggleContainer.addEventListener('touchstart', (e) => {
+                            startX = e.touches[0].clientX;
+                        }, {passive: true});
+                        toggleContainer.addEventListener('touchend', (e) => {
+                            let endX = e.changedTouches[0].clientX;
+                            let diffX = endX - startX;
+                            if (Math.abs(diffX) > 40) {
+                                if (diffX > 0 && !input.checked) {
+                                    input.checked = true;
+                                    input.dispatchEvent(new Event('change'));
+                                } else if (diffX < 0 && input.checked) {
+                                    input.checked = false;
+                                    input.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        }, {passive: true});
+                        
+                        group.appendChild(toggleContainer);
+                    } else if (type === "COMBO") {
+                        const select = document.createElement('select');
+                        select.id = `input_${key}`;
+                        let values = params.values || ["None"];
+                        if (params.folder) {
+                            try {
+                                const response = await fetch(`/power_panel/ls/${params.folder}`);
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    values = ["None", ...data];
+                                }
+                            } catch (e) { console.error("Fetch models failed:", e); }
+                        }
+                        values.forEach(val => {
+                            const opt = document.createElement('option');
+                            opt.value = val;
+                            opt.innerText = val;
+                            select.appendChild(opt);
+                        });
+                        select.value = currentValue ?? params.default;
+                            group.appendChild(select);
+                    } else if (type === "UPLOADER") {
+                        const uploaderContainer = document.createElement('div');
+                        uploaderContainer.className = 'uploader-wrapper';
+                        
+                        // 存储文件名的隐藏 Input，用来与 ComfyUI 进行后台通信同步
+                        const valueInput = document.createElement('input');
+                        valueInput.type = 'hidden';
+                        valueInput.id = `input_${key}`;
+                        valueInput.value = currentValue || '';
+                        uploaderContainer.appendChild(valueInput);
+                        
+                        const controlRow = document.createElement('div');
+                        controlRow.className = 'uploader-control-row';
+                        
+                        // 拖拽盒子（移除了 📤 图标标签）
+                        const dropzone = document.createElement('div');
+                        dropzone.className = 'uploader-dropzone';
+                        
+                        const text = document.createElement('span');
+                        text.className = 'uploader-text';
+                        const mediaType = params.media || 'image';
+                        text.innerText = t("label_uploader", "Drop {0} here or click to browse",t(mediaType, mediaType));
+                        
+                        const filenameLabel = document.createElement('div');
+                        filenameLabel.className = 'uploader-filename';
+                        filenameLabel.innerText = currentValue ? currentValue : '';
+                        
+                        dropzone.appendChild(text);
+                        dropzone.appendChild(filenameLabel);
+                        
+                        // 原生隐藏的文件选择控件 (放置在 dropzone 外部，杜绝点击事件无限死循环调用)
+                        const fileInput = document.createElement('input');
+                        fileInput.type = 'file';
+                        fileInput.style.display = 'none';
+                        if (mediaType === 'image') fileInput.accept = 'image/*';
+                        else if (mediaType === 'video') fileInput.accept = 'video/*';
+                        else if (mediaType === 'audio') fileInput.accept = 'audio/*';
+                        else fileInput.accept = 'image/*,video/*,audio/*';
+                        
+                        // 预览切换按钮（移至右侧，改用 👁️ 进行简洁显示）
+                        const previewToggle = document.createElement('button');
+                        previewToggle.type = 'button';
+                        previewToggle.className = 'uploader-preview-toggle';
+                        previewToggle.innerText = '👁️';
+                        previewToggle.style.display = currentValue ? 'flex' : 'none';
+                        
+                        // 依次将组件塞入行容器中
+                        controlRow.appendChild(dropzone);
+                        controlRow.appendChild(previewToggle);
+                        
+                        uploaderContainer.appendChild(fileInput);
+                        uploaderContainer.appendChild(controlRow);
+                        
+                        // 预览盒子
+                        const previewBox = document.createElement('div');
+                        previewBox.className = 'uploader-preview-box collapsed';
+                        
+                        uploaderContainer.appendChild(previewBox);
+                        
+                        // 触发文件选择
+                        dropzone.onclick = () => {
+                            fileInput.click();
+                        };
+                        
+                        // 处理拖放与选择事件
+                        dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+                        dropzone.ondragenter = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+                        dropzone.ondragleave = () => { dropzone.classList.remove('dragover'); };
+                        dropzone.ondrop = (e) => {
+                            e.preventDefault();
+                            dropzone.classList.remove('dragover');
+                            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                                handleFileUpload(e.dataTransfer.files[0]);
+                            }
+                        };
+                        
+                        fileInput.onchange = () => {
+                            if (fileInput.files && fileInput.files.length > 0) {
+                                handleFileUpload(fileInput.files[0]);
+                            }
+                        };
+                        
+                        // 监听文件值的变动，一旦发生改变（上传成功或重新加载），实时更新主节点
+                        valueInput.addEventListener('change', () => {
+                            if (window.comfyApp && sourceNodeId) {
+                                const node = window.comfyApp.graph.getNodeById(sourceNodeId);
+                                if (node) {
+                                    const widget = node.widgets.find(w => w.name === key);
+                                    if (widget) {
+                                        widget.value = valueInput.value;
+                                        if (widget.callback) widget.callback(valueInput.value);
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // 异步上传逻辑
+                        // 异步上传逻辑（已升级客户端格式过滤防护网）
+                        async function handleFileUpload(file) {
+                            // 👇【核心修改：客户端多媒体类型强制双重验证（MIME + 后缀名）】
+                            const mime = file.type || "";
+                            const ext = file.name.split('.').pop().toLowerCase();
+                            
+                            // 👇【严格按照 ComfyUI 官方及主流媒体节点支持的格式构建的白名单】
+                            const imageExts = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tif', 'tiff', 'jfif', 'jpe', 'tga'];
+                            const videoExts = ['mp4', 'webm', 'mkv', 'mov', 'avi', 'gif', 'flv', '3gp'];
+                            const audioExts = ['wav', 'mp3', 'ogg', 'flac', 'm4a', 'aac', 'wma'];
+                            
+                            // 双重校验：支持 mime 类型检测和物理后缀白名单检测
+                            const isImage = mime.startsWith('image/') || imageExts.includes(ext);
+                            const isVideo = mime.startsWith('video/') || videoExts.includes(ext);
+                            const isAudio = mime.startsWith('audio/') || audioExts.includes(ext);
+                            
+                            // 匹配当前控件要求的 mediaType
+                            let isValid = false;
+                            if (mediaType === 'image') {
+                                isValid = isImage;
+                            } else if (mediaType === 'video') {
+                                isValid = isVideo;
+                            } else if (mediaType === 'audio') {
+                                isValid = isAudio;
+                            } else {
+                                // 若没配置或设为 all，默认支持上述三大类多媒体
+                                isValid = isImage || isVideo || isAudio;
+                            }
+                            
+                            // 拦截验证失败的文件
+                            if (!isValid) {
+                                //alert(`Upload Blocked!\nThis uploader is configured for [${mediaType.toUpperCase()}] files only.\n\nSelected file: ${file.name}`);
+                                text.innerText = t("label_uploader", "Drop {0} here or click to browse",t(mediaType, mediaType));
+                                return;
+                            }
+                            
+                            // 通过验证后开始执行上传动作
+                            text.innerText = t('label_uploading', 'Uploading...');
+                            const formData = new FormData();
+                            formData.append('image', file);
+                            
+                            try {
+                                const response = await fetch('/upload/image', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                if (response.ok) {
+                                    const result = await response.json();
+                                    valueInput.value = result.name;
+                                    filenameLabel.innerText = result.name;
+                                    text.innerText = t("label_uploader", "Drop {0} here or click to browse",t(mediaType, mediaType));
+                                    
+                                    valueInput.dispatchEvent(new Event('change'));
+                                    
+                                    updateMediaPreview(result.name);
+                                } else {
+                                    text.innerText = t('label_upfailed', 'Upload failed!');
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                text.innerText = t('label_upfailed', 'Upload failed!');
+                            }
+                        }
+                        
+                        // 自适应媒体类型预览组件渲染
+                        function updateMediaPreview(filename) {
+                            previewBox.innerHTML = '';
+                            previewToggle.style.display = 'flex';
+                            
+                            if (!filename || filename === 'None' || filename === 'undefined' || filename === '') {
+                                const placeholderImg = document.createElement('img');
+                                // 采用主预览同款黑底灰字无损 SVG
+                                placeholderImg.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100%' height='100%'><rect width='100%' height='100%' fill='%23555'/><text x='50%' y='50%' fill='%23999' font-size='16' text-anchor='middle' alignment-baseline='middle'>No Media</text></svg>";
+                                previewBox.appendChild(placeholderImg);
+                                
+                                // 占位符状态下我们保持其折叠状态（collapsed）以节省屏幕空间，用户可以手动点击小眼睛展开查看
+                                return;
+                            }
+                            
+                            // 如果是真实的媒体资源，自动移除折叠状态进行展开
+                            previewBox.classList.remove('collapsed');
+                            
+                            const fileUrl = `/view?filename=${encodeURIComponent(filename)}&type=input`;
+                            let mediaElement;
+                            
+                            if (mediaType === 'image') {
+                                mediaElement = document.createElement('img');
+                                mediaElement.src = fileUrl;
+                            } else if (mediaType === 'video') {
+                                mediaElement = document.createElement('video');
+                                mediaElement.src = fileUrl;
+                                mediaElement.controls = true;
+                            } else if (mediaType === 'audio') {
+                                mediaElement = document.createElement('audio');
+                                mediaElement.src = fileUrl;
+                                mediaElement.controls = true;
+                            } else {
+                                // 无法识别时：根据文件后缀猜测类型
+                                const ext = filename.split('.').pop().toLowerCase();
+                                if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
+                                    mediaElement = document.createElement('video');
+                                    mediaElement.src = fileUrl;
+                                    mediaElement.controls = true;
+                                } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) {
+                                    mediaElement = document.createElement('audio');
+                                    mediaElement.src = fileUrl;
+                                    mediaElement.controls = true;
+                                } else {
+                                    mediaElement = document.createElement('img');
+                                    mediaElement.src = fileUrl;
+                                }
+                            }
+                            
+                            previewBox.appendChild(mediaElement);
+                        }
+                        
+                        previewToggle.onclick = () => {
+                            previewBox.classList.toggle('collapsed');
+                        };
+                        
+                        updateMediaPreview(currentValue || 'None');
+                        group.appendChild(uploaderContainer);
+                    } else if (type === "SEED") {
+                        const seedContainer = document.createElement('div');
+                        seedContainer.className = 'seed-wrapper';
+                        // 1. 顶层大数字 +/- 微调器
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'numeric-input-wrapper';
+                        const btnMinus = document.createElement('button');
+                        btnMinus.type = 'button';
+                        btnMinus.className = 'btn-numeric-adjust';
+                        btnMinus.innerText = '◀';
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.className = 'number-input';
+                        input.value = currentValue ?? 0;
+                        input.id = `input_${key}`;
+                        input.min = 0;
+                        input.max = "18446744073709551615"; 
+                        const btnPlus = document.createElement('button');
+                        btnPlus.type = 'button';
+                        btnPlus.className = 'btn-numeric-adjust';
+                        btnPlus.innerText = '▶';
+                        // 使用 BigInt 运算防止 JS 浮点数运算在超大数时丢失精度
+                        btnMinus.onclick = () => {
+                            let val = BigInt(input.value) - 1n;
+                            if (val < 0n) val = 0n;
+                            input.value = val.toString();
+                            input.dispatchEvent(new Event('change'));
+                        };
+                        btnPlus.onclick = () => {
+                            let val = BigInt(input.value) + 1n;
+                            const maxVal = 18446744073709551615n;
+                            if (val > maxVal) val = maxVal;
+                            input.value = val.toString();
+                            input.dispatchEvent(new Event('change'));
+                        };
+                        wrapper.appendChild(btnMinus);
+                        wrapper.appendChild(input);
+                        wrapper.appendChild(btnPlus);
+                        seedContainer.appendChild(wrapper);
+                        
+                        // 2. 底层 control_after_generate 下拉动作选项
+                        const actionRow = document.createElement('div');
+                        actionRow.className = 'seed-action-row';
+                        
+                        const actionLabel = document.createElement('span');
+                        actionLabel.className = 'seed-action-label';
+                        actionLabel.innerText = t("label_seed_control", "Control After Generate");
+                        
+                        const select = document.createElement('select');
+                        select.className = 'seed-action-select';
+                        select.id = `input_action_${key}`;
+                        const options = ["fixed", "increment", "decrement", "randomize"];
+                        options.forEach(opt => {
+                            const el = document.createElement('option');
+                            el.value = opt;
+                            el.innerText = opt;
+                            select.appendChild(el);
+                        });
+                        // 自动计算提取 ComfyUI 在 SEED 控件后追加的 control_after_generate 伴生控件
+                        const seedWidgetIndex = parentNode ? parentNode.widgets.indexOf(parentWidget) : -1;
+                        const companionWidget = (seedWidgetIndex !== -1) ? parentNode.widgets[seedWidgetIndex + 1] : null;
+                        if (companionWidget) {
+                            select.value = companionWidget.value || "randomize";
+                        }
+                        // 改变动作时，立即同步回 ComfyUI 主界面
+                        select.addEventListener('change', () => {
+                            if (companionWidget) {
+                                companionWidget.value = select.value;
+                                if (companionWidget.callback) companionWidget.callback(select.value);
+                            }
+                        });
+                        actionRow.appendChild(actionLabel);
+                        actionRow.appendChild(select);
+                        seedContainer.appendChild(actionRow);
+                        
+                        group.appendChild(seedContainer);
+                    } else {
+                        const isMultiline = params.multiline === true;
+                        
+                        if (isMultiline) {
+                            const container = document.createElement('div');
+                            container.className = 'input-with-button';
+                        
+                            const input = document.createElement('textarea');
+                            input.className = 'tight-textarea';
+                            input.value = currentValue ?? '';
+                            input.id = `input_${key}`;
+                            input.rows = 1;
+                            input.placeholder = params.placeholder || "";
+                            container.appendChild(input);
+                        
+                            const editBtn = document.createElement('button');
+                            editBtn.className = 'btn-edit-multiline';
+                            editBtn.type = 'button';
+                            editBtn.innerText = '📝';
+                            editBtn.onclick = () => openMultilineEditor(input, params.name || key);
+                            container.appendChild(editBtn);
+                        
+                            group.appendChild(container);
+                        } else {
+                            // 2. 如果未开启多行文本：退回最干净的普通单行输入框，完全不渲染 📝 按钮
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.value = currentValue ?? '';
+                            input.id = `input_${key}`;
+                            
+                            if (params.placeholder) input.placeholder = params.placeholder;
+                            group.appendChild(input);
+                        }
+                    }
+                    formContainer.appendChild(group);
+            }
+        }
+        
+        // 多行编辑器逻辑
+        function openMultilineEditor(targetInput, title) {
+            activeInputEl = targetInput;
+            document.getElementById('modal-title').innerText = t("label_edit", "Edit: {0}", title);
+            const modalTextarea = document.getElementById('multiline-textarea');
+            modalTextarea.value = targetInput.value;
+            if (targetInput.placeholder) {
+                modalTextarea.placeholder = targetInput.placeholder;
+            } else {
+                modalTextarea.placeholder = '';
+            }
+            document.getElementById('multiline-modal').style.display = 'flex';
+            
+        }
+        document.getElementById('multiline-modal-close').onclick = closeMultilineModal;
+        document.getElementById('multiline-btn-cancel').onclick = closeMultilineModal;
+        document.getElementById('multiline-btn-save').onclick = () => {
+            if (activeInputEl) {
+                activeInputEl.value = document.getElementById('multiline-textarea').value;
+                activeInputEl.dispatchEvent(new Event('change'));
+            }
+            closeMultilineModal();
+        };
+        function closeMultilineModal() {
+            document.getElementById('multiline-modal').style.display = 'none';
+            activeInputEl = null;
+        }
+        
+        // 带滑动判定与按钮翻页的画廊灯箱大图
+        function openLightbox(src) {
+            if (src && !src.startsWith('data:image/svg+xml')) {
+                const items = Array.from(document.querySelectorAll('.gallery-item'));
+                currentImagesList = items.map(img => img.src);
+                
+                const absoluteSrc = new URL(src, window.location.href).href;
+                currentLightboxIndex = currentImagesList.indexOf(absoluteSrc);
+                
+                if (currentLightboxIndex === -1) {
+                    currentImagesList = [absoluteSrc];
+                    currentLightboxIndex = 0;
+                }
+                
+                updateLightboxUI();
+                document.getElementById('lightbox-modal').style.display = 'flex';
+            }
+        }
+        
+        function updateLightboxUI() {
+            const imgUrl = currentImagesList[currentLightboxIndex];
+            document.getElementById('lightbox-img').src = imgUrl;
+            document.getElementById('main-preview').src = imgUrl;
+        }
+        
+        function navigateLightbox(dir) {
+            if (currentImagesList.length <= 1) return;
+            currentLightboxIndex += dir;
+            
+            if (currentLightboxIndex < 0) {
+                currentLightboxIndex = currentImagesList.length - 1;
+            } else if (currentLightboxIndex >= currentImagesList.length) {
+                currentLightboxIndex = 0;
+            }
+            updateLightboxUI();
+        }
+        
+        function initLightboxEvents() {
+            const lightboxModal = document.getElementById('lightbox-modal');
+            
+            document.getElementById('lightbox-prev').onclick = (e) => {
+                e.stopPropagation(); 
+                navigateLightbox(-1);
+            };
+            document.getElementById('lightbox-next').onclick = (e) => {
+                e.stopPropagation();
+                navigateLightbox(1);
+            };
+            
+            let swipeStartX = 0;
+            lightboxModal.addEventListener('touchstart', (e) => {
+                swipeStartX = e.touches[0].clientX;
+            }, {passive: true});
+            
+            lightboxModal.addEventListener('touchend', (e) => {
+                const endX = e.changedTouches[0].clientX;
+                const diffX = endX - swipeStartX;
+                if (Math.abs(diffX) > 50) { 
+                    if (diffX > 0) {
+                        navigateLightbox(-1); 
+                    } else {
+                        navigateLightbox(1);  
+                    }
+                }
+            }, {passive: true});
+            
+            lightboxModal.onclick = (e) => {
+                if (e.target.id === 'lightbox-modal' || e.target.id === 'lightbox-close') {
+                    lightboxModal.style.display = 'none';
+                }
+            };
+        }
+        
+        // 自适应拖拽逻辑（已深度整合 ChatGPT 优化机制）
+        function initResizeLogic() {
+            const resizer = document.getElementById('resizer');
+            const viewerContainer = document.querySelector('.viewer-container');
+            const rightPanel = document.querySelector('.right-panel');
+            let isDragging = false;
+            
+            resizer.addEventListener('mousedown', startDrag);
+            resizer.addEventListener('touchstart', startDrag, { passive: false });
+            
+            function startDrag(e) {
+                e.preventDefault();
+                isDragging = true;
+                resizer.classList.add('dragging');
+                
+                viewerContainer.style.pointerEvents = 'none';
+                rightPanel.style.pointerEvents = 'none';
+                
+                const isDesktop = window.innerWidth >= 768;
+                document.body.style.cursor = isDesktop ? 'col-resize' : 'row-resize';
+                
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag, { passive: false });
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchend', stopDrag);
+            }
+            
+            function drag(e) {
+                if (!isDragging) return;
+                const isDesktop = window.innerWidth >= 768;
+                
+                const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+                const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+                
+                if (isDesktop) {
+                    const totalWidth = window.innerWidth;
+                    let newWidth = totalWidth - clientX;
+                    
+                    if (newWidth < 250) newWidth = 250;
+                    if (newWidth > totalWidth - 150) newWidth = totalWidth - 150;
+                    
+                    // GPT 机制：同步设置 flexBasis 与 width 保证拖拽极其稳定
+                    rightPanel.style.flexBasis = `${newWidth}px`;
+                    rightPanel.style.width = `${newWidth}px`;
+                    localStorage.setItem('appview_panel_width', newWidth); 
+                } else {
+                    let newHeight = clientY;
+                    const totalHeight = window.innerHeight;
+                    
+                    // 预留底部参数空间
+                    if (newHeight < 150) newHeight = 150;
+                    if (newHeight > totalHeight - 150) newHeight = totalHeight - 150;
+                    
+                    viewerContainer.style.flex = `0 0 ${newHeight}px`;
+                    localStorage.setItem('appview_preview_height', newHeight); 
+                }
+            }
+            
+            // 恢复事件状态
+            function stopDrag() {
+                isDragging = false;
+                resizer.classList.remove('dragging');
+                
+                viewerContainer.style.pointerEvents = 'auto';
+                rightPanel.style.pointerEvents = 'auto';
+                document.body.style.cursor = '';
+                
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('touchmove', drag);
+                document.removeEventListener('mouseup', stopDrag);
+                document.removeEventListener('touchend', stopDrag);
+            }
+        }
+        
+        // 发起生成请求（数据落盘并触发回调通知）
+        document.getElementById('btn-run').addEventListener('click', async () => {
+            if (!window.comfyApp || !sourceNodeId) return alert(t("lost_connection","Lost connection to ComfyUI!"));
+            const node = window.comfyApp.graph.getNodeById(sourceNodeId);
+            if (!node) return alert(t("node_notfound", "Original node not found!"));
+            
+            for (const widget of node.widgets) {
+                const inputEl = document.getElementById(`input_${widget.name}`);
+                if (inputEl) {
+                    let newValue;
+                    if (inputEl.type === 'checkbox') {
+                        newValue = inputEl.checked;
+                    } else if (inputEl.type === 'number' || inputEl.type === 'range') {
+                        newValue = Number(inputEl.value);
+                    } else {
+                        newValue = inputEl.value;
+                    }
+                    
+                    if (widget.value !== newValue) {
+                        widget.value = newValue;
+                        if (widget.callback) widget.callback(newValue); // 执行原生回调保障工作流感知状态变动
+                    }
+                }
+            }
+            const batchInput = document.getElementById('input-batch-count');
+            const batchCount = batchInput ? Math.max(1, parseInt(batchInput.value) || 1) : 1;
+            
+            window.comfyApp.queuePrompt(0, batchCount); 
+        });
+        
+        // 停止请求
+        document.getElementById('btn-stop').addEventListener('click', () => {
+            fetch('/interrupt', { method: 'POST' }).catch(err => console.error("Interrupt failed:", err));
+        });
+    </script>
+</body>
+</html>

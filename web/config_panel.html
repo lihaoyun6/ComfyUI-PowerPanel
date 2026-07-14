@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>⚙️ Configure Parameter Panel</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --primary: #3E8AE2;
+            --danger: #A6433F;
+            --text: #ffffff;
+            --border: #333333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 顶部标题栏 */
+        .config-header {
+            padding: 16px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .config-header h2 { font-size: 18px; font-weight: bold; }
+
+        /* 主体分栏 */
+        .config-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* 左侧：控件添加选择栏 */
+        .left-selector {
+            width: 180px;
+            border-right: 1px solid var(--border);
+            background: #171717;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+        .selector-title { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; }
+        .btn-type-add {
+            width: 100%;
+            padding: 12px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-type-add:hover {
+            border-color: var(--primary);
+            background: rgba(62, 138, 226, 0.1);
+        }
+
+        /* 右侧：卡片列表 */
+        .right-cards-list {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 卡片样式 */
+        .config-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        .card-badge {
+            background: var(--primary);
+            color: #fff;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .card-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .btn-card {
+            background: #252525;
+            border: 1px solid var(--border);
+            color: #ccc;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-card:hover { color: #fff; border-color: #666; }
+        .btn-delete { background: var(--danger); border: none; color: white; }
+        .btn-delete:hover { background: #be534e; }
+
+        /* 卡片表单网格 */
+        .card-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        .form-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .form-item label { font-size: 11px; color: #888; }
+        .form-item input, .form-item select, .form-item textarea {
+            width: 100%;
+            padding: 8px;
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+        .form-item input:focus, .form-item select:focus, .form-item textarea:focus { border-color: var(--primary); }
+        .form-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* 底部操作 */
+        .config-footer {
+            padding: 16px;
+            background: var(--panel-bg);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn-footer {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .btn-cancel { background: #333; color: #eee; }
+        .btn-cancel:hover { background: #444; }
+        .btn-save { background: var(--primary); color: #fff; }
+        .btn-save:hover { background: #559ceb; }
+        
+        /* 👇【新增：RAW 纯文本视图容器与 textarea 样式表】 */
+        #raw-mode-container {
+            display: none;
+            flex: 1;
+            padding: 16px;
+            height: 100%;
+            background: #121212;
+        }
+        #raw-textarea {
+            width: 100%;
+            height: 100%;
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 13px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+        #raw-textarea:focus { border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部 -->
+    <div class="config-header">
+        <h2 data-i18n="config_title">⚙️ Configure Parameter Panel</h2>
+        <span data-i18n="max_limit" style="font-size: 12px; color: #666;">Supports up to 32 controls</span>
+    </div>
+
+    <!-- 中部 -->
+    <div class="config-main">
+        <!-- 👇【修改】：将原有左侧选择列表和右侧卡片组，用 visual-mode-container 统一包裹 -->
+        <div id="visual-mode-container" style="display: flex; flex: 1; overflow: hidden; width: 100%;">
+            <div class="left-selector">
+                <div class="selector-title" data-i18n="add_controls">Add Controls</div>
+                <button class="btn-type-add" data-i18n="type_int" onclick="addNewControl('INT')">🔟 INT</button>
+                <button class="btn-type-add" data-i18n="type_float" onclick="addNewControl('FLOAT')">🔢 FLOAT</button>
+                <button class="btn-type-add" data-i18n="type_string" onclick="addNewControl('STRING')">🔠 STRING</button>
+                <button class="btn-type-add" data-i18n="type_combo" onclick="addNewControl('COMBO')">🔽 COMBO</button>
+                <button class="btn-type-add" data-i18n="type_filelist" onclick="addNewControl('FILELIST')">📂 FILE LIST</button>
+                <button class="btn-type-add" data-i18n="type_seed" onclick="addNewControl('SEED')">🎲 SEED</button>
+                <button class="btn-type-add" data-i18n="type_boolean" onclick="addNewControl('BOOLEAN')">🔘 BOOLEAN</button>
+                <button class="btn-type-add" data-i18n="type_bypasser" onclick="addNewControl('BYPASSER')">🔌 BYPASSER</button>
+                <button class="btn-type-add" data-i18n="type_uploader" onclick="addNewControl('UPLOADER')">📤 UPLOADER</button>
+                <button class="btn-type-add" data-i18n="type_button" onclick="addNewControl('BUTTON')">🖲️ BUTTON</button>
+                <button class="btn-type-add" data-i18n="type_previewer"onclick="addNewControl('PREVIEWER')">🖼️ PREVIEWER</button>
+            </div>
+            <div class="right-cards-list" id="cards-container"></div>
+        </div>
+    
+        <!-- 👇【新增】：RAW 纯文本 JSON 编辑器挂载点 -->
+        <div id="raw-mode-container">
+            <textarea id="raw-textarea" placeholder="{ }"></textarea>
+        </div>
+    </div>
+
+    <!-- 底部 -->
+    <div class="config-footer">
+        <button class="btn-footer" id="btn-toggle-raw" style="margin-right: auto;" data-i18n="raw_mode">RAW Mode</button>
+        <button class="btn-footer btn-cancel" id="btn-cancel" data-i18n="cancel">Cancel</button>
+        <button class="btn-footer btn-save" id="btn-save" data-i18n="save_config">Save Configuration</button>
+    </div>
+
+    <script>
+        let nodeId = null;
+        let configList = []; 
+        let translations = {}; 
+        let isRawMode = false; // 当前是否处于 RAW 视图状态
+        let isLivePreviewActive = false; // 全局追踪虚拟预览器的激活状态
+
+        function t(key, defaultText, ...args) {
+            let text = translations[key] || defaultText;
+            if (args.length > 0) {
+                args.forEach((arg, idx) => {
+                    text = text.replace(`{${idx}}`, arg);
+                });
+            }
+            return text;
+        }
+
+        async function loadI18n() {
+            let locale = "en";
+            try {
+                if (window.parent && window.parent.comfyApp && window.parent.comfyApp.ui) {
+                    locale = window.parent.comfyApp.ui.settings.getSettingValue("Comfy.Locale") || "en";
+                }
+            } catch (e) { console.warn(e); }
+
+            if (locale.startsWith("en")) return; 
+
+            try {
+                const i18nUrl = new URL(`i18n/${locale}.json`, window.location.href).href;
+                let res = await fetch(i18nUrl);
+                if (!res.ok) {
+                    const baseLang = locale.split('-')[0];
+                    const baseI18nUrl = new URL(`i18n/${baseLang}.json`, window.location.href).href;
+                    res = await fetch(baseI18nUrl);
+                }
+                if (res.ok) {
+                    translations = await res.json();
+                    applyStaticI18n(); 
+                }
+            } catch (e) {
+                console.warn("Translation load skipped or failed:", e);
+            }
+        }
+
+        function applyStaticI18n() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[key]) el.innerText = translations[key];
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadI18n();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            nodeId = urlParams.get('nodeId');
+
+            if (nodeId && window.parent && window.parent.comfyApp) {
+                const parentNode = window.parent.comfyApp.graph.getNodeById(nodeId);
+                if (parentNode) {
+                    const jsonWidget = parentNode.widgets.find(w => w.name === "config_json");
+                    const currentConfig = JSON.parse(jsonWidget ? jsonWidget.value || "{}" : "{}");
+                    
+                    // 读取主页面上 live_preview 原生控件的当前开启状态
+                    const livePreviewWidget = parentNode.widgets.find(w => w.name === "live_preview");
+                    isLivePreviewActive = livePreviewWidget ? livePreviewWidget.value === true : false;
+                    
+                    // 👈【核心转换】：在从主界面加载时，如果类型为 COMBO 且存在 folder，内部重构为独立的 FILELIST
+                    configList = Object.entries(currentConfig).map(([key, params]) => {
+                        let uiType = (params.type || "STRING").toUpperCase();
+                        if (uiType === "COMBO" && params.folder) {
+                            uiType = "FILELIST";
+                        }
+                        return {
+                            key: key,
+                            type: uiType,
+                            params: { ...params }
+                        };
+                    });
+                    
+                    // 👇【新增】：若主页面开启了实时预览，强行向列表中追加一个虚拟的 PREVIEWER 节点
+                    if (isLivePreviewActive) {
+                        configList.push({
+                            key: "live_preview_ctrl", // 虚拟 Key
+                            type: "PREVIEWER",
+                            params: { type: "PREVIEWER", name: "LIVE PREVIEW", tooltip: "" }
+                        });
+                    }
+                    document.getElementById('btn-toggle-raw').onclick = toggleRawMode;
+                    renderCards();
+                }
+            }
+
+            document.getElementById('btn-cancel').onclick = () => {
+                if (window.parent.closeConfigOverlay) window.parent.closeConfigOverlay();
+            };
+
+            document.getElementById('btn-save').onclick = () => {
+                saveConfigToParent();
+            };
+        });
+        
+        function toggleRawMode() {
+            const btn = document.getElementById('btn-toggle-raw');
+            const visualContainer = document.getElementById('visual-mode-container');
+            const rawContainer = document.getElementById('raw-mode-container');
+            const rawTextarea = document.getElementById('raw-textarea');
+            
+            if (!isRawMode) {
+                // 👁️ 可视化 -> 💻 RAW Mode
+                packCurrentInputToState(); // 1. 先将表单最新值打包到内存
+                
+                // 记录虚拟 Previewer 目前是否被加入在内，以便后续往返还原
+                hasPreviewerActive = configList.some(item => item.type === "PREVIEWER");
+                
+                const compiled = {};
+                configList.forEach(item => {
+                    if (item.type === "PREVIEWER") return; // 过滤虚拟控件
+                    
+                    const finalParams = { ...item.params };
+                    if (item.type === "FILELIST") {
+                        finalParams.type = "COMBO"; // 输出归一化
+                    }
+                    compiled[item.key] = finalParams;
+                });
+                
+                // 2. 将编译后的标准 JSON 写入文本域并切页
+                rawTextarea.value = JSON.stringify(compiled, null, 2);
+                visualContainer.style.display = 'none';
+                rawContainer.style.display = 'flex';
+                
+                btn.innerText = t('visual_mode', 'Visual Mode');
+                isRawMode = true;
+            } else {
+                // 💻 RAW Mode -> 👁️ 可视化
+                try {
+                    // 1. 尝试解析并校正 JSON，写错了任何逗号都会被此处捕获拦截
+                    const parsed = JSON.parse(rawTextarea.value || "{}");
+                    
+                    // 2. 将 RAW JSON 重新映射解析还原为带索引的 configList
+                    const tempConfigList = Object.entries(parsed).map(([key, params]) => {
+                        let uiType = (params.type || "STRING").toUpperCase();
+                        if (uiType === "COMBO" && params.folder) {
+                            uiType = "FILELIST";
+                        }
+                        return { key: key, type: uiType, params: { ...params } };
+                    });
+                    
+                    // 3. 完美召回：如果切换前曾带有预览器，往返重绘时将其自动塞回最末尾
+                    if (hasPreviewerActive) {
+                        tempConfigList.push({
+                            key: "live_preview_ctrl",
+                            type: "PREVIEWER",
+                            params: { type: "PREVIEWER", name: "LIVE PREVIEW", tooltip: "" }
+                        });
+                    }
+                    
+                    configList = tempConfigList;
+                    renderCards(); // 根据新的 configList 渲染卡片
+                    
+                    // 4. 切回可视化
+                    rawContainer.style.display = 'none';
+                    visualContainer.style.display = 'flex';
+                    
+                    btn.innerText = t('raw_mode', 'RAW Mode');
+                    isRawMode = false;
+                } catch (err) {
+                    // 如果 JSON 有语法错误，拒绝切回并亮起红字警报
+                    alert(t('invalid_json_alert', 'Invalid JSON format! Please correct it. Error:\n{0}', err.message));
+                }
+            }
+        }
+
+        // 渲染方法（去除了所有行内的硬编码中文，改用纯英默认）
+        function renderCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            if (configList.length === 0) {
+                container.innerHTML = `<p style="color:#666; text-align:center; margin-top:40px;">${t('no_controls', 'No controls added. Click left options to add.')}</p>`;
+                return;
+            }
+
+            configList.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = 'config-card';
+                card.setAttribute('data-index', idx);
+                card.setAttribute('data-type', item.type);
+
+                const header = document.createElement('div');
+                header.className = 'card-header';
+                header.innerHTML = `
+                    <span class="card-badge">${t(item.type, item.type)}</span>
+                    <div class="card-actions">
+                        <button class="btn-card" onclick="moveCard(${idx}, -1)">▲</button>
+                        <button class="btn-card" onclick="moveCard(${idx}, 1)">▼</button>
+                        <button class="btn-card btn-delete" onclick="deleteCard(${idx})">🗑️</button>
+                    </div>
+                `;
+                card.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'card-form-grid';
+
+                grid.innerHTML += `
+                    <div class="form-item">
+                        <label>${t('param_key', 'Parameter Key (Unique)')}</label>
+                        <input type="text" class="input-key" value="${item.key}" placeholder="e.g. seed_value">
+                    </div>
+                    <div class="form-item">
+                        <label>${t('display_name', 'Display Name')}</label>
+                        <input type="text" class="input-name" value="${item.params.name || ''}" placeholder="e.g. Seed">
+                    </div>
+                    <div class="form-item">
+                        <label>${t('tooltip', 'Tooltip')}</label>
+                        <input type="text" class="input-tooltip" value="${item.params.tooltip || ''}" placeholder="e.g. Seeds for generation">
+                    </div>
+                `;
+
+                const type = item.type;
+                if (type === "INT" || type === "FLOAT") {
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('default_val', 'Default Value')}</label>
+                            <input type="number" class="input-default" value="${item.params.default ?? 0}" step="${type === 'INT' ? '1' : '0.1'}">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('min_val', 'Min Value')}</label>
+                            <input type="number" class="input-min" value="${item.params.min ?? 0}">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('max_val', 'Max Value')}</label>
+                            <input type="number" class="input-max" value="${item.params.max ?? 100}">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('step', 'Step')}</label>
+                            <input type="number" class="input-step" value="${item.params.step ?? (type === 'INT' ? 1 : 0.1)}" step="${type === 'INT' ? '1' : '0.1'}">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('display_type', 'Display Type')}</label>
+                            <select class="input-display">
+                                <option value="number" ${item.params.display === 'number' ? 'selected' : ''}>${t('number_box', 'Number Box')}</option>
+                                <option value="slider" ${item.params.display === 'slider' ? 'selected' : ''}>${t('slider', 'Slider')}</option>
+                            </select>
+                        </div>
+                    `;
+                    if (type === "FLOAT") {
+                        grid.innerHTML += `
+                            <div class="form-item">
+                                <label>${t('precision', 'Precision')}</label>
+                                <input type="number" class="input-precision" value="${item.params.precision ?? 3}" min="0" max="10">
+                            </div>
+                        `;
+                    }
+                }
+                /*else if (type === "SEED") {
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('default_seed', 'Default Seed')}</label>
+                            <input type="number" class="input-default" value="${item.params.default ?? 0}">
+                        </div>
+                    `;
+                }*/
+                else if (type === "STRING") {
+                    grid.innerHTML += `
+                        <div class="form-item" style="flex-direction:row; align-items:center; gap:8px;">
+                            <input type="checkbox" class="input-multiline" ${item.params.multiline ? 'checked' : ''}>
+                            <label style="margin-top:4px;">${t('multiline', 'Multiline')}</label>
+                        </div>
+                        <div class="form-item">
+                            <label>${t('default_val', 'Default Text')}</label>
+                            <input type="text" class="input-default" value="${item.params.default || ''}">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('placeholder', 'Placeholder')}</label>
+                            <input type="text" class="input-placeholder" value="${item.params.placeholder || ''}" placeholder="e.g. Enter prompt here">
+                        </div>
+                    `;
+                }
+                // 👈【COMBO 与 FILELIST 彻底解耦展示】：COMBO 界面上只允许手写 dropdown 内容
+                else if (type === "COMBO") {
+                    const valuesStr = Array.isArray(item.params.values) ? item.params.values.join('\n') : (item.params.values || "Option1\nOption2");
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('combo_options', 'Dropdown Options (One per line)')}</label>
+                            <textarea class="input-values" style="height:60px; resize:none;">${valuesStr}</textarea>
+                        </div>
+                        <div class="form-item">
+                            <label>${t('combo_default', 'Default Choice')}</label>
+                            <input type="text" class="input-default" value="${item.params.default || ''}">
+                        </div>
+                    `;
+                }
+                // 👈【FILELIST 独立展示】：界面上只显示 文件夹输入，不再显示下拉框选项文本域
+                else if (type === "FILELIST") {
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('filelist_folder', 'Folder Name (e.g. checkpoints)')}</label>
+                            <input type="text" class="input-folder" value="${item.params.folder || 'checkpoints'}" placeholder="e.g. checkpoints">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('combo_default', 'Default Choice')}</label>
+                            <input type="text" class="input-default" value="${item.params.default || ''}">
+                        </div>
+                    `;
+                }
+                else if (type === "BOOLEAN") {
+                    grid.innerHTML += `
+                        <div class="form-item" style="flex-direction:row; align-items:center; gap:8px;">
+                            <input type="checkbox" class="input-default" ${item.params.default ?? true ? 'checked' : ''}>
+                            <label style="margin-top:4px;">${t('default_toggle', 'Default State')}</label>
+                        </div>
+                    `;
+                }
+                else if (type === "BUTTON") {
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('trigger_action', 'Trigger Action')}</label>
+                            <select class="input-action">
+                                <option value="run" ${item.params.action === 'run' ? 'selected' : ''}>${t('run_action', 'Run Generation')}</option>
+                                <option value="stop" ${item.params.action === 'stop' ? 'selected' : ''}>${t('stop_action', 'Stop Execution')}</option>
+                            </select>
+                        </div>
+                    `;
+                }
+                else if (type === "BYPASSER") {
+                    const mId = Array.isArray(item.params.match_id) ? item.params.match_id.join(',') : (item.params.match_id || '');
+                    const mTitle = Array.isArray(item.params.match_title) ? item.params.match_title.join(',') : (item.params.match_title || '');
+                    const mGroup = Array.isArray(item.params.match_group) ? item.params.match_group.join(',') : (item.params.match_group || '');
+
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('match_id', 'Match Node IDs')}</label>
+                            <input type="text" class="input-match-id" value="${mId}" placeholder="e.g. 12,15">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('match_title', 'Match Node Titles')}</label>
+                            <input type="text" class="input-match-title" value="${mTitle}" placeholder="e.g. KSampler,Lora Loader">
+                        </div>
+                        <div class="form-item">
+                            <label>${t('match_group', 'Match Group Names')}</label>
+                            <input type="text" class="input-match-group" value="${mGroup}" placeholder="e.g. Debug,Detailer">
+                        </div>
+                        <div class="form-item" style="flex-direction:row; align-items:center; gap:8px;">
+                            <input type="checkbox" class="input-default" ${item.params.default ?? true ? 'checked' : ''}>
+                            <label style="margin-top:4px;">${t('default_toggle', 'Default State')}</label>
+                        </div>
+                        <div class="form-item" style="grid-column: 2 / 4; text-align:right;">
+                            <label style="margin-top:4px;" data-i18n="tooltip_matching">${t('bypasser_desc', 'You may use any one or more of the three matching methods')}</label>
+                        </div>
+                    `;
+                }
+                else if (type === "UPLOADER") {
+                    grid.innerHTML += `
+                        <div class="form-item">
+                            <label>${t('uploader_media', 'Uploader Media Type')}</label>
+                            <select class="input-media">
+                                <option value="image" ${item.params.media === 'image' ? 'selected' : ''}>${t('uploader_image', 'Image')}</option>
+                                <option value="video" ${item.params.media === 'video' ? 'selected' : ''}>${t('uploader_video', 'Video')}</option>
+                                <option value="audio" ${item.params.media === 'audio' ? 'selected' : ''}>${t('uploader_audio', 'Audio')}</option>
+                                <!--<option value="all" ${item.params.media === 'all' ? 'selected' : ''}>${t('uploader_all', 'All Formats')}</option>-->
+                            </select>
+                        </div>
+                    `;
+                }
+                else if (type === "PREVIEWER") {
+                    grid.innerHTML += `
+                        <div class="form-item" style="grid-column: 1 / -1;">
+                            <label style="margin-top:4px;" >
+                                ${t('previewer_desc', 'Activating this will display a live preview on the panel')}
+                            </label>
+                        </div>
+                    `;
+                }
+
+                card.appendChild(grid);
+                container.appendChild(card);
+            });
+        }
+
+        // 新增控件
+        function addNewControl(type) {
+            if (type === "PREVIEWER" && configList.some(item => item.type === "PREVIEWER")) {
+                alert(t('previewer_exists_alert', "Only one Previewer control can be added!"));
+                return;
+            }
+
+            if (configList.length >= 32) {
+                alert(t('max_limit_alert', "Maximum limit of 32 controls reached!"));
+                return;
+            }
+
+            packCurrentInputToState();
+
+            let keyIdx = 1;
+            let key = `${type.toLowerCase()}_${keyIdx}`;
+            while (configList.some(item => item.key === key)) {
+                keyIdx++;
+                key = `${type.toLowerCase()}_${keyIdx}`;
+            }
+
+            const defaultParams = {
+                type: type,
+                name: key.toUpperCase(),
+                tooltip: ""
+            };
+
+            if (type === "INT") {
+                defaultParams.default = 0; defaultParams.min = 0; defaultParams.max = 100; defaultParams.step = 1; defaultParams.display = "number";
+            } else if (type === "FLOAT") {
+                defaultParams.default = 0.0; defaultParams.min = 0.0; defaultParams.max = 1.0; defaultParams.step = 0.1; defaultParams.precision = 3; defaultParams.display = "number";
+            } else if (type === "SEED") {
+                defaultParams.default = 0;
+            } else if (type === "STRING") {
+                defaultParams.default = ""; defaultParams.multiline = false; defaultParams.placeholder = "";
+            } else if (type === "COMBO") {
+                defaultParams.values = ["Option1", "Option2"];
+            } else if (type === "FILELIST") {
+                defaultParams.folder = "checkpoints";
+            } else if (type === "BOOLEAN") {
+                defaultParams.default = true;
+            } else if (type === "BUTTON") {
+                defaultParams.action = "run";
+            } else if (type === "BYPASSER") {
+                defaultParams.default = true;
+            } else if (type === "UPLOADER") {
+                defaultParams.media = "image";
+            } else if (type === "PREVIEWER") {
+                defaultParams.name = "LIVE PREVIEW";
+            }
+
+            configList.push({ key, type, params: defaultParams });
+            renderCards();
+
+            setTimeout(() => {
+                const list = document.getElementById('cards-container');
+                list.scrollTop = list.scrollHeight;
+            }, 50);
+        }
+
+        // 删除卡片
+        function deleteCard(idx) {
+            packCurrentInputToState();
+            configList.splice(idx, 1);
+            renderCards();
+        }
+
+        // 排序移动
+        function moveCard(idx, direction) {
+            const targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= configList.length) return;
+
+            packCurrentInputToState();
+            const temp = configList[idx];
+            configList[idx] = configList[targetIdx];
+            configList[targetIdx] = temp;
+            renderCards();
+        }
+
+        // 打包当前表单数值到状态机中
+        function packCurrentInputToState() {
+            const cards = document.querySelectorAll('.config-card');
+            configList = Array.from(cards).map(card => {
+                const key = card.querySelector('.input-key').value.trim();
+                const type = card.getAttribute('data-type');
+                const params = {
+                    type: type,
+                    name: card.querySelector('.input-name').value.trim(),
+                    tooltip: card.querySelector('.input-tooltip').value.trim()
+                };
+
+                if (type === "INT" || type === "FLOAT") {
+                    params.min = Number(card.querySelector('.input-min').value);
+                    params.max = Number(card.querySelector('.input-max').value);
+                    params.step = Number(card.querySelector('.input-step').value);
+                    params.default = Number(card.querySelector('.input-default').value);
+                    params.display = card.querySelector('.input-display').value;
+                    if (type === "FLOAT") {
+                        params.precision = Number(card.querySelector('.input-precision').value);
+                    }
+                //} else if (type === "SEED") {
+                //    params.default = Number(card.querySelector('.input-default').value);
+                } else if (type === "STRING") {
+                    params.default = card.querySelector('.input-default').value;
+                    params.multiline = card.querySelector('.input-multiline').checked;
+                    params.placeholder = card.querySelector('.input-placeholder').value.trim();
+                } else if (type === "COMBO") {
+                    params.values = card.querySelector('.input-values').value.split('\n').map(v => v.trim()).filter(v => v);
+                    params.default = card.querySelector('.input-default').value.trim() || undefined;
+                } else if (type === "FILELIST") {
+                    params.folder = card.querySelector('.input-folder').value.trim() || undefined;
+                    params.default = card.querySelector('.input-default').value.trim() || undefined;
+                } else if (type === "BOOLEAN") {
+                    params.default = card.querySelector('.input-default').checked;
+                } else if (type === "BUTTON") {
+                    params.action = card.querySelector('.input-action').value;
+                } else if (type === "BYPASSER") {
+                    params.default = card.querySelector('.input-default').checked;
+                    const mId = card.querySelector('.input-match-id').value.trim();
+                    const mTitle = card.querySelector('.input-match-title').value.trim();
+                    const mGroup = card.querySelector('.input-match-group').value.trim();
+                    
+                    if (mId) params.match_id = mId.split(',').map(v => v.trim()).filter(v => v);
+                    if (mTitle) params.match_title = mTitle.split(',').map(v => v.trim()).filter(v => v);
+                    if (mGroup) params.match_group = mGroup.split(',').map(v => v.trim()).filter(v => v);
+                } else if (type === "UPLOADER") {
+                    params.media = card.querySelector('.input-media').value;
+                } else if (type === "PREVIEWER") {
+                    // 虚拟卡片无额外子参数，只需空占位即可
+                }
+
+                return { key, type, params };
+            });
+        }
+
+        // 保存打包
+        function saveConfigToParent() {
+            if (isRawMode) {
+                const rawTextarea = document.getElementById('raw-textarea');
+                try {
+                    // 强行尝试解析校验
+                    JSON.parse(rawTextarea.value || "{}");
+                    // 校验通过，直接利用切页逻辑将文本区状态回填重构回 configList
+                    toggleRawMode(); 
+                } catch (err) {
+                    alert(t('invalid_json_alert', 'Invalid JSON format! Please correct it. Error:\n{0}', err.message));
+                    return;
+                }
+            }
+
+            packCurrentInputToState();
+
+            const compiled = {};
+            let hasError = false;
+            let hasPreviewer = false; // 👈 用于统计用户有没有添加预览器卡片
+
+            for (let i = 0; i < configList.length; i++) {
+                const item = configList[i];
+                
+                // 👇【新增判定】：若为虚拟控件，不将其编译打包进 compiled JSON
+                if (item.type === "PREVIEWER") {
+                    hasPreviewer = true;
+                    continue; // 跳过此卡片的编译流程
+                }
+                
+                if (!item.key) {
+                    alert(t('empty_key_alert', "Parameter Key cannot be empty at index {0}!", i+1));
+                    hasError = true;
+                    break;
+                }
+                if (!/^[a-zA-Z0-9_]+$/.test(item.key)) {
+                    alert(t('invalid_key_alert', "Parameter Key must be Alphanumeric/Underscore only! Check: {0}", item.key));
+                    hasError = true;
+                    break;
+                }
+                if (compiled[item.key]) {
+                    alert(t('duplicate_key_alert', "Duplicate Parameter Key found: {0}!", item.key));
+                    hasError = true;
+                    break;
+                }
+
+                // 👈【归一化输出】：如果界面表现为 FILELIST，后端打包编译时强制重新改写成标准的 COMBO，确保下游100%无碍解析！
+                const finalParams = { ...item.params };
+                if (item.type === "FILELIST") {
+                    finalParams.type = "COMBO";
+                }
+                compiled[item.key] = finalParams;
+            }
+
+            if (hasError) return;
+
+            if (window.parent && window.parent.comfyApp && nodeId) {
+                const parentNode = window.parent.comfyApp.graph.getNodeById(nodeId);
+                if (parentNode) {
+                    // 👇【新增】：同步刷新主节点上的原生 live_preview 属性值
+                    const livePreviewWidget = parentNode.widgets.find(w => w.name === "live_preview");
+                    if (livePreviewWidget) {
+                        livePreviewWidget.value = hasPreviewer;
+                        if (livePreviewWidget.callback) livePreviewWidget.callback(hasPreviewer);
+                    }
+
+                    const jsonWidget = parentNode.widgets.find(w => w.name === "config_json");
+                    if (jsonWidget) {
+                        jsonWidget.value = JSON.stringify(compiled, null, 2);
+                        
+                        parentNode.buildDynamicUI();
+                        parentNode.notifyUnpackers();
+                    }
+                }
+            }
+
+            if (window.parent.closeConfigOverlay) {
+                window.parent.closeConfigOverlay();
+            }
+        }
+    </script>
+</body>
+</html>
