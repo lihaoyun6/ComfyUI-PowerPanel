@@ -825,7 +825,7 @@
                     const node = window.comfyApp.graph.getNodeById(nodeId);
                     if (node) {
                         let nodeName = node.title || node.type || `Node #${nodeId}`;
-                        if (nodeName.length > 18) nodeName = nodeName.substring(0, 32) + "..";
+                        if (nodeName.length > 50) nodeName = nodeName.substring(0, 50) + "..";
                         statusText.innerText = nodeName;
                         statusText.style.color = "var(--primary)";
                     }
