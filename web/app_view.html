@@ -798,14 +798,17 @@
         }
         
         async function loadI18n() {
-            let locale = navigator.language.split(/[-_]/)[0];;
+            // 默认获取浏览器语言
+            let locale = navigator.language.split(/[-_]/)[0];
             try {
-                if (window.opener && window.opener.comfyApp && window.opener.comfyApp.ui) {
-                    locale = window.opener.comfyApp.ui.settings.getSettingValue("Comfy.Locale") || "en";
+                const parentWindow = window.parent !== window ? window.parent : (window.opener && !window.opener.closed ? window.opener : null);
+                
+                if (parentWindow && parentWindow.comfyApp && parentWindow.comfyApp.ui) {
+                    locale = parentWindow.comfyApp.ui.settings.getSettingValue("Comfy.Locale") || "en";
                 }
             } catch (e) { console.warn(e); }
             
-            if (locale.startsWith("en")) return; 
+            if (locale.startsWith("en")) return;
             
             try {
                 const cacheBuster = `?t=${new Date().getTime()}`;
@@ -1150,7 +1153,7 @@
                     if (clearBtn) {
                         clearBtn.onclick = (e) => {
                             e.stopPropagation();
-                            const confirmText = t("confirm_clear_gallery", "Are you sure you want to clear the gallery history?");
+                            const confirmText = t("confirm_clear_gallery", "Clear gallery history?");
                             if (confirm(confirmText)) {
                                 document.querySelectorAll('.gallery-item, .gallery-item-placeholder').forEach(el => el.remove());
                                 // 清空数据和缓存

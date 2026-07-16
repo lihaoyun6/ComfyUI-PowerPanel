@@ -1,7 +1,7 @@
 [project]
 name = "ComfyUI-PowerPanel"
 description = "Add unified control panels to your workflows and convert them to WebApp without using Node 2.0"
-version = "0.1.0"
+version = "0.1.1"
 license = {file = "LICENSE"} 
 classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
