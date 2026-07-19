@@ -169,16 +169,44 @@
         }
         .controls-section::-webkit-scrollbar { display: none; }
         .control-group { margin-bottom: 8px;}
+        
+        /* 1. 父容器 Label：改为 Flex 布局 */
         .control-group label.control-title {
-            display: block; margin-bottom: 3px; font-size: 13px; color: var(--title);
-            min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: flex;                  /* 开启 flex 布局 */
+            align-items: center;            /* 垂直居中，确保文字和气泡对齐 */
+            justify-content: space-between; /* 两端对齐：文字在左，气泡在右 */
+            margin-bottom: 3px; 
+            font-size: 13px; 
+            color: var(--title);
+            /* ⚠️ 注意：这里删除了 overflow: hidden 等属性，移交给了下面的子元素 */
         }
         
-        /* 👇 新增：Slider 数值专用小气泡样式，采用等宽字体防止数字跳动时框体抖动 */
+        /* 2. 处理左侧的文本 span（实现过长省略号） */
+        .control-group label.control-title span:first-child {
+            flex: 1;                        /* 占据剩余的所有空间 */
+            min-width: 0;                   /* Flex 子元素文字截断的必加属性 */
+            white-space: nowrap;            /* 不换行 */
+            overflow: hidden;               /* 隐藏溢出部分 */
+            text-overflow: ellipsis;        /* 超出部分显示省略号... */
+            padding-right: 8px;             /* 给文字和右侧气泡留一点安全间距 */
+        }
+        
+        /* 3. 处理右侧的 Badge 气泡 */
         .slider-value-badge {
-            background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); padding: 1px 6px;
-            border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace;
-            color: var(--primary); user-select: none;
+            flex-shrink: 0;                 /* 🌟 核心：无论左边文字多长，绝不压缩气泡 */
+            display: inline-block;          /* 🌟 修复底部缺一块的问题（恢复完整盒模型） */
+            
+            /* 下面是你原有的气泡样式 */
+            background: rgba(255, 255, 255, 0.06); 
+            border: 1px solid var(--border); 
+            padding: 1px 6px;
+            border-radius: 4px; 
+            font-size: 11px; 
+            font-weight: bold; 
+            font-family: monospace;
+            color: var(--title); 
+            background-color: var(--panel-bg);
+            user-select: none;
         }
         
         input[type="text"], select {
@@ -349,7 +377,7 @@
         .queue-badge {
             display: none; position: absolute; top: -6px; left: -6px; font-size: 13px; font-weight: bold;
             background-color: #F44336 !important; color: #FFFFFF !important; height: 26px; min-width: 26px;
-            padding: 0 5px; border-radius: 13px; border: 1.5px solid var(--panel-bg); align-items: center; 
+            padding: 0 5px; border-radius: 13px; border: 2px solid var(--bg); align-items: center; 
             justify-content: center; z-index: 10; pointer-events: none; 
         }
         
