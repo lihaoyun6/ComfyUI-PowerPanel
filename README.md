@@ -3,7 +3,9 @@ Convert any workflow into an easy-to-use WebApp interface without enabling Node2
 **[[📃中文版](./README_zh.md)]** 
 
 ## Preview
-https://github.com/user-attachments/assets/0abd3b8a-5fc7-40fc-a71f-aec98a1cdea9  
+| Desktop UI | Mobile UI |
+|---|---|
+| <video src="https://github.com/user-attachments/assets/0abd3b8a-5fc7-40fc-a71f-aec98a1cdea9"> | <video src="https://github.com/user-attachments/assets/384ed02e-be62-4614-a96d-2abd25da67a2"> |  
 
 ## Installation
 ```bash

@@ -3,7 +3,9 @@
 **[[📃English](./README.md)]**   
 
 ## 预览
-https://github.com/user-attachments/assets/0abd3b8a-5fc7-40fc-a71f-aec98a1cdea9  
+| 桌面端 | 移动端 |
+|---|---|
+| <video src="https://github.com/user-attachments/assets/0abd3b8a-5fc7-40fc-a71f-aec98a1cdea9"> | <video src="https://github.com/user-attachments/assets/384ed02e-be62-4614-a96d-2abd25da67a2"> |  
 
 ## 安装
 ```bash
