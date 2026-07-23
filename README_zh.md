@@ -14,5 +14,9 @@ git clone https://github.com/lihaoyun6/ComfyUI-AppBuilder.git
 ```
 或从节点管理器中安装.
 
+## 用法
+- 你可以使用此扩展将任何工作流转换为友好的 WebApp, 只需要添加`AppBuilder`节点并连接你需要控制的参数  
+- 如果你想要在手机上使用这些配置好的工作流, 只需要将他们保存到`app/`子目录下(例如`app/SD1.5_txt2img`). 这样当你在手机上访问 ComfyUI 时就会看到他们出现在 App 管理器中
+
 ## 致谢
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) @comfyanonymous  

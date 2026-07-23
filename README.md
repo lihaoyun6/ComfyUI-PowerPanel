@@ -14,5 +14,9 @@ git clone https://github.com/lihaoyun6/AppBuilder.git
 ```
 Or install it from the Manager.
 
+## Usages
+- This extension allows you to turn any workflow into a user-friendly WebApp. Just add an AppBuilder node and connect the parameters you want to expose.  
+- To use your configured workflows on your phone, simply save them under the subfolder `app/`(e.g., `app/SD1.5_txt2img`). Once you access ComfyUI from your phone, these workflows will automatically appear in the App Manager.
+
 ## Credits
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) @comfyanonymous  
